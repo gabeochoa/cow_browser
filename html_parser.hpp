@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "parser.hpp"
+
 enum NodeType { Unknown = 0, Text, Element };
 std::string print_type(const NodeType type) {
   switch (type) {
@@ -104,67 +106,8 @@ ElementNode *createElement(std::string name, AttributeMap attrs,
   return new ElementNode(name, attrs, children);
 }
 
-bool is_space(char c) { return isspace(c); }
-bool is_not_space(char c) { return !isspace(c); }
-bool is_alpha(char c) { return isalpha(c); }
-bool is_not_alpha(char c) { return !isalpha(c); }
-bool is_not_lt(char c) { return c != '<'; }
-bool is_quote(char c) { return (c == '"' || c == '\''); }
-bool is_not_quote(char c) { return !is_quote(c); }
-
-struct Parser {
-  int position;
-  std::string input;
-  Parser(std::string i) : position(0), input(i) {}
-
-  // peek the next character
-  char next_character() {
-    char c = input[position];
-    // std::cout << "peek " << c << std::endl;
-    return c;
-  }
-
-  // Do the next characters start with the given string?
-  bool starts_with(std::string prefix) {
-    auto found = std::mismatch(prefix.begin(), prefix.end(),
-                               input.substr(position).begin());
-    return found.first == prefix.end();
-  }
-
-  bool is_eof() { return this->position > this->input.size(); }
-
-  char consume_next_character() {
-    auto c = this->next_character();
-    // std::cout << "consume (" << c << ")" << std::endl;
-    this->position += 1;
-    return c;
-  }
-
-  std::string consume_until(const std::function<bool(char)> &predicate) {
-    // TODO replace with string builder
-    std::string token;
-    for (;;) {
-      if (this->is_eof() || predicate(input[this->position])) {
-        break;
-      }
-      token += this->consume_next_character();
-    }
-    // std::cout << "token " << token << std::endl;
-    return token;
-  }
-
-  std::string consume_until_space() {
-    // std::cout << "consume until space" << std::endl;
-    return this->consume_until(&is_space);
-  }
-  std::string consume_spaces() {
-    // std::cout << "consume spaces" << std::endl;
-    return this->consume_until(&is_not_space);
-  }
-  std::string consume_tag() {
-    // std::cout << "consume tag" << std::endl;
-    return this->consume_until(&is_not_alpha);
-  }
+struct HtmlParser : public Parser {
+  HtmlParser(std::string i) : Parser(i) {}
 
   Node *parse_text() {
     // std::cout << "parse text " << std::endl;
@@ -266,8 +209,8 @@ struct Parser {
   }
 };
 
-Node *parse(std::string input) {
-  auto parser = Parser(input);
+Node *parse_html(std::string input) {
+  auto parser = HtmlParser(input);
   auto nodes = parser.parse_nodes();
   if (nodes.size() == 1) {
     return nodes[0];
