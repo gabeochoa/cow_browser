@@ -8,11 +8,12 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "parser.hpp"
+#include "parser.cpp"
 
 enum NodeType { Unknown = 0, Text, Element };
 std::string print_type(const NodeType type) {
@@ -37,10 +38,11 @@ struct Node {
   Node(NodeType t = NodeType::Unknown) : type(t) {}
   Node(NodeType t, std::vector<Node *> c) : type(t), children(c) {}
 
-  virtual ~Node() {
-    while (!children.empty())
-      delete children.back(), children.pop_back();
-  }
+  // TODO this causes a segfault so lets just leak
+  // virtual ~Node() {
+  // while (!children.empty())
+  // delete children.back(), children.pop_back();
+  // }
 
   // Here's our overloaded operator<<
   friend std::ostream &operator<<(std::ostream &out, const Node &n) {
@@ -81,6 +83,21 @@ std::ostream &operator<<(std::ostream &os, const AttributeMap &a) {
   return os;
 }
 
+std::vector<std::string> split(std::string s, std::string delimiter) {
+  size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+  std::string token;
+  std::vector<std::string> res;
+
+  while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+    token = s.substr(pos_start, pos_end - pos_start);
+    pos_start = pos_end + delim_len;
+    res.push_back(token);
+  }
+
+  res.push_back(s.substr(pos_start));
+  return res;
+}
+
 struct ElementNode : public Node {
   std::string name;
   AttributeMap attrs;
@@ -96,6 +113,22 @@ struct ElementNode : public Node {
     os << this->attrs << "\n";
     this->print_children(os);
     return os;
+  }
+
+  std::string id() { return attrs.at("id"); }
+
+  std::set<std::string> classes() {
+    std::set<std::string> s;
+    try {
+      std::string classes_str = attrs.at("class");
+      auto classes = split(classes_str, " ");
+      for (auto class_ : classes) {
+        s.insert(class_);
+      }
+    } catch (const std::exception &e) {
+      return s;
+    }
+    return s;
   }
 };
 
@@ -219,6 +252,5 @@ Node *parse_html(std::string input) {
     return new ElementNode("html", m, nodes);
   }
 }
-
 
 #endif
